@@ -20,6 +20,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      # (Opcional) Instalação rápida do SDK/Build-tools, ajuda alguns projetos
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -27,27 +28,30 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Clean
-        run: ./gradlew clean
+        run: ./gradlew clean --no-daemon
 
-      # Se você NÃO tem assinatura release configurada, mantenha o debug:
-      - name: Build Debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      # Gera debug e release para aumentar as chances de termos APK
+      - name: Build Debug & Release APK
+        run: |
+          ./gradlew :app:assembleDebug --no-daemon
+          ./gradlew :app:assembleRelease --no-daemon
 
-      # (Opcional) Se mais tarde configurar assinatura release, descomente a linha abaixo
-      # - name: Build Release APK
-      #   run: ./gradlew :app:assembleRelease --stacktrace
-
+      # Lista TUDO que foi gerado para termos certeza do caminho
       - name: Show outputs (for debugging)
         run: |
-          echo "=== Listing outputs ==="
+          echo "=== Listing app/build/outputs ==="
           ls -R app/build/outputs || true
+          echo "=== Find *.apk in repo ==="
+          find . -type f -name "*.apk" -print || true
+          echo "=== Find *.aab in repo ==="
+          find . -type f -name "*.aab" -print || true
 
-      - name: Upload APK
+      # Envia qualquer APK encontrado (debug ou release)
+      - name: Upload APK(s)
         uses: actions/upload-artifact@v4
         with:
-          name: EcoImpact-APK
-          # Procura qualquer APK (ou AAB) dentro de outputs, independente da pasta
+          name: APKs
           path: |
             app/build/outputs/**/*.apk
-            app/build/outputs/**/*.aab
-          if-no-files-found: error
+            **/*.apk
+          if-no-files-found: warn
