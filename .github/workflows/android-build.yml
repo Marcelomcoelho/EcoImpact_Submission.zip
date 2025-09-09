@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
@@ -20,40 +20,41 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platforms;android-34
-            build-tools;34.0.0
-            platform-tools
-            platforms;android-33
-            build-tools;33.0.2
-
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Clean
-        run: ./gradlew clean --no-daemon
-
-      - name: Build Debug APK
-        # força construir o app debug do módulo "app"
-        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
-
-      - name: Show outputs (for debugging)
-        # Mostra qualquer APK gerado e onde ele está
+      # Passo de diagnóstico para ver módulos e estrutura
+      - name: Print Gradle projects and tree
         run: |
-          echo "=== Procurando APKs em app/build ==="
-          find app/build -type f -name "*.apk" -printf "%p\n" || true
-          echo "=== FIM ==="
+          ./gradlew --version
+          ./gradlew projects --no-daemon
+          echo "=== Raiz do repo ==="
+          ls -la
+          echo "=== Procurando build.gradle(.kts) ==="
+          find . -maxdepth 3 -type f \( -name "build.gradle" -o -name "build.gradle.kts" \) -print
 
-      - name: Upload APK
+      # Limpa e tenta montar ambos (debug e release) para qualquer módulo de app
+      - name: Clean
+        run: ./gradlew clean --no-daemon --stacktrace
+
+      - name: Assemble Debug (all modules)
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Assemble Release (unsigned)
+        run: ./gradlew assembleRelease --no-daemon --stacktrace || true
+
+      # Mostra onde os APKs foram gerados
+      - name: Show outputs (where are APKs?)
+        run: |
+          echo "=== Procurando APKs ==="
+          find . -type f -name "*.apk" -printf "%p\n" || true
+          echo "======================="
+
+      # Faz upload de QUALQUER .apk encontrado no repositório
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
           name: APKs
-          # cobre caminhos como app/build/outputs/apk/debug/app-debug.apk,
-          # split APKs, e variações novas do AGP
           path: |
-            app/build/outputs/**/*.apk
-            **/build/outputs/**/*.apk
+            **/*.apk
           if-no-files-found: error
