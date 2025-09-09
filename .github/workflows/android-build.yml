@@ -30,13 +30,24 @@ jobs:
       - name: Clean
         run: ./gradlew clean
 
+      # 👇 força compilar o módulo "app" no variant Debug
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew :app:assembleDebug --stacktrace
 
+      # (opcional) lista onde os arquivos foram gerados para debug
+      - name: Show outputs
+        run: |
+          echo "== app/build/outputs =="
+          ls -R app/build/outputs || true
+
+      # 👇 amplia o glob para qualquer pasta de outputs que contenha APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: EcoImpact-APK
-          path: app/build/outputs/apk/debug/*.apk
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/*.apk
+            **/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 7
